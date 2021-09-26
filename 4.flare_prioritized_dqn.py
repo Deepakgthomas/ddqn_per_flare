@@ -216,12 +216,11 @@ class CnnDQN(nn.Module):
         # )
 
     def forward_conv(self, obs, flatten=True):
-        # Checking obs.max() was drastically slowing down the algorithm
+        # Checking obs.max() and normalizing it was drastically slowing down the algorithm. Also I do not normalize in other environments.
         # if obs.max() > 1.:
         #     obs = obs / 255.
 
-        #My modification to the problem above -
-        obs = obs / 255.
+
 
         # Since we only have a grayscale channel, time step should be 3. The first channel of obs will be the batch size.
         # Therefore the second channel of obs will have to be used to get time steps.
