@@ -1,4 +1,3 @@
-#todo 1. The implementation of Flare is absolutely rough. I have to understand the entire logic again.
 # Some of the code was taken from - https://github.com/WendyShang/flare/blob/main/encoder.py
 
 #!/usr/bin/env python
@@ -162,20 +161,26 @@ env.action_space.seed(seed)
 # In[36]:
 T = env.observation_space.shape[0]
 print("The number of time steps = ", T)
-
+#todo Check my code with Wendy's in code difference checker
+#todo Understand what happens while computing td loss
 class CnnDQN(nn.Module):
-    def __init__(self, input_shape, feature_dim,
+    def __init__(self, obs_shape, feature_dim,
                  num_filters=32,
                  output_logits=False,
-                 num_layers=2):
+                 num_layers=2,
+                 image_channel=1):
         super(CnnDQN, self).__init__()
 
-        assert len(input_shape) == 3
-        self.input_shape = input_shape
+        assert len(obs_shape) == 3
+
+        self.obs_shape = obs_shape
         self.feature_dim = feature_dim
         self.num_layers = num_layers
-        self.image_channel = 1
-        time_step = input_shape[0] // self.image_channel
+        self.image_channel = image_channel
+        #It is assumed that the input has stacked images. For instance, if the input has 3 channels and 4 stacked images, the first dimension should be 12.
+        #Since we only have a grayscale channel, time step should be 3.
+        time_step = obs_shape[0] // self.image_channel
+
         self.convs = nn.ModuleList(
             [nn.Conv2d(self.image_channel, num_filters, 3, stride=2)]
         )
@@ -184,11 +189,16 @@ class CnnDQN(nn.Module):
         for i in range(2, num_layers - 1):
             self.convs.append(nn.Conv2d(num_filters, num_filters, 3, stride=1))
         self.outputs = dict()
-        x = torch.randn([32] + list(input_shape))
+        # Shape of x =  torch.Size([32, 3, 84, 84])
+        x = torch.randn([32] + list(obs_shape))
+
         self.out_dim = self.forward_conv(x, flatten=False).shape[-1]
+
         print('conv output dim: ' + str(self.out_dim))
+
         self.fc = nn.Linear(num_filters * self.out_dim * self.out_dim * (2 * time_step - 2), self.feature_dim)
         self.ln = nn.LayerNorm(self.feature_dim)
+
         self.output_logits = output_logits
         # self.features = nn.Sequential(
         #     nn.Conv2d(input_shape[0], 32, kernel_size=8, stride=4),
@@ -206,13 +216,17 @@ class CnnDQN(nn.Module):
         # )
 
     def forward_conv(self, obs, flatten=True):
+        #todo Urgent - This is going to slow down my algorithm!
         if obs.max() > 1.:
             obs = obs / 255.
-
+        # Since we only have a grayscale channel, time step should be 3. The first channel of obs will be the batch size.
+        # Therefore the second channel of obs will have to be used to get time steps.
         time_step = obs.shape[1] // self.image_channel
         obs = obs.view(obs.shape[0], time_step, self.image_channel, obs.shape[-2], obs.shape[-1])
         #todo Why do I have to change view to reshape
         obs = obs.reshape(obs.shape[0] * time_step, self.image_channel, obs.shape[-2], obs.shape[-1])
+
+        #I honestly don't see the purpose of some of these dictionary values. Maybe used by the original author for debugging.
 
         self.outputs['obs'] = obs
         conv = torch.relu(self.convs[0](obs))
@@ -225,10 +239,16 @@ class CnnDQN(nn.Module):
             conv = torch.relu(self.convs[i](conv))
             self.outputs['conv%s' % (i + 1)] = conv
 
+        #Size is another name for shape in Torch
+        # Bringing conv to the shape of (batch size, time steps, channels, height/width, height/width)
         conv = conv.view(conv.size(0) // time_step, time_step, conv.size(1), conv.size(2), conv.size(3))
 
+        # This should extract out all the time steps starting from the second one.
         conv_current = conv[:, 1:, :, :, :]
+        # The second term in the RHS contains time steps starting from the first except the last.
+        # Therefore conv_prev contains the latent difference between each succeeding time frame. Also, the detach over here is important.
         conv_prev = conv_current - conv[:, :time_step - 1, :, :, :].detach()
+        # Concatentating the encoded images with its latent difference
         conv = torch.cat([conv_current, conv_prev], axis=1)
         conv = conv.view(conv.size(0), conv.size(1) * conv.size(2), conv.size(3), conv.size(4))
 
@@ -242,6 +262,7 @@ class CnnDQN(nn.Module):
 
 
     def forward(self, obs, detach=False):
+
         h = self.forward_conv(obs)
         if detach:
             h = h.detach()
@@ -252,9 +273,11 @@ class CnnDQN(nn.Module):
             print(h.shape)
             assert False
         self.outputs['fc'] = h_fc
+        #Doing a layer norm over here. The layer norm cannot be removed. Read the paper for details.
         h_norm = self.ln(h_fc)
         self.outputs['ln'] = h_norm
 
+        # This should be false
         if self.output_logits:
             out = h_norm
         else:
