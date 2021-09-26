@@ -388,5 +388,8 @@ for frame_idx in range(1, num_frames + 1):
 
     if frame_idx % 1000 == 0:
         update_target(current_model, target_model)
+
+    if frame_idx % 1400000 == 0:
+        print("Simulation Complete !")
         
 
