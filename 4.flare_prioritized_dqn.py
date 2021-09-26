@@ -1,4 +1,5 @@
 # Some of the code was taken from - https://github.com/WendyShang/flare/blob/main/encoder.py
+# Full code has been checked.
 
 #!/usr/bin/env python
 # coding: utf-8
@@ -161,8 +162,7 @@ env.action_space.seed(seed)
 # In[36]:
 T = env.observation_space.shape[0]
 print("The number of time steps = ", T)
-#todo Check my code with Wendy's in code difference checker
-#todo Understand what happens while computing td loss
+#Done - Checked my code with the paper's using code difference checker
 class CnnDQN(nn.Module):
     def __init__(self, obs_shape, feature_dim,
                  num_filters=32,
@@ -216,9 +216,13 @@ class CnnDQN(nn.Module):
         # )
 
     def forward_conv(self, obs, flatten=True):
-        #todo Urgent - This is going to slow down my algorithm!
-        if obs.max() > 1.:
-            obs = obs / 255.
+        # Checking obs.max() was drastically slowing down the algorithm
+        # if obs.max() > 1.:
+        #     obs = obs / 255.
+
+        #My modification to the problem above -
+        obs = obs / 255.
+
         # Since we only have a grayscale channel, time step should be 3. The first channel of obs will be the batch size.
         # Therefore the second channel of obs will have to be used to get time steps.
         time_step = obs.shape[1] // self.image_channel
@@ -253,7 +257,6 @@ class CnnDQN(nn.Module):
         conv = conv.view(conv.size(0), conv.size(1) * conv.size(2), conv.size(3), conv.size(4))
 
         if not flatten:
-            print("Shape of conv = ", conv.shape)
             return conv
         else:
             conv = conv.view(conv.size(0), -1)
