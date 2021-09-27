@@ -152,7 +152,7 @@ from common.wrappers import make_atari, wrap_deepmind, wrap_pytorch
 # In[18]:
 
 
-env_id = "PongNoFrameskip-v4"
+env_id = "FreewayNoFrameskip-v4"
 env    = make_atari(env_id)
 env    = wrap_deepmind(env)
 env    = wrap_pytorch(env)
@@ -390,6 +390,6 @@ for frame_idx in range(1, num_frames + 1):
         update_target(current_model, target_model)
 
     if frame_idx % 1400000 == 0:
-        print("Simulation Complete !")
+        print("Simulation " + filename + " Complete !")
         
 
