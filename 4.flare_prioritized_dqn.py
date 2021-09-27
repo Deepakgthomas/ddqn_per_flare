@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 # <h3>Use Cuda</h3>
 
 # In[3]:
-seed = 333
+seed = 7779
 
 
 USE_CUDA = torch.cuda.is_available()
@@ -194,7 +194,6 @@ class CnnDQN(nn.Module):
 
         self.out_dim = self.forward_conv(x, flatten=False).shape[-1]
 
-        print('conv output dim: ' + str(self.out_dim))
 
         self.fc = nn.Linear(num_filters * self.out_dim * self.out_dim * (2 * time_step - 2), self.feature_dim)
         self.ln = nn.LayerNorm(self.feature_dim)
